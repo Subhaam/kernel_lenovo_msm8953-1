@@ -71,3 +71,5 @@ obj-$(CONFIG_MOT_UTAG) += utag/
 obj-$(CONFIG_QPNP_MISC) 	+= qpnp-misc.o
 obj-y 	+= perftags.o
 obj-y	+= tas2555/
+obj-$(CONFIG_FORCE_FAST_CHARGE) += fastchg.o
+
