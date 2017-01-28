@@ -337,3 +337,12 @@ config LENOVO_PM_LOG_TLMM
 	def_bool n
 	depends on LENOVO_PM_LOG
 #lenovo.sw chenyb1 20150310 add for pm log end
+
+config QUICK_WAKEUP
+	bool "Quick wakeup"
+	depends on SUSPEND
+	default y
+	---help---
+	  Allow kernel driver to do periodic jobs without resuming the full system
+	  This option can increase battery life on android powered smartphone.
+	  
