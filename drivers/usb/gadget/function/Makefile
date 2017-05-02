@@ -49,4 +49,6 @@ obj-$(CONFIG_USB_F_ACC)         += usb_f_accessory.o
 usb_f_usbnet-y			:= f_usbnet.o
 obj-$(CONFIG_USB_ANDROID_USBNET) += usb_f_usbnet.o
 
+usb_f_hid-y                     := f_hid.o
+obj-y                           += usb_f_hid.o
 
