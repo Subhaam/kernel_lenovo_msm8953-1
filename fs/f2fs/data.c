@@ -302,10 +302,11 @@ static bool has_merged_page(struct f2fs_sb_info *sbi, struct inode *inode,
 }
 
 static void __f2fs_submit_merged_write(struct f2fs_sb_info *sbi,
-				enum page_type type, enum temp_type temp)
+				struct inode *inode, nid_t ino, pgoff_t idx,
+				enum page_type type)
 {
 	enum page_type btype = PAGE_TYPE_OF_BIO(type);
-	struct f2fs_bio_info *io = sbi->write_io[btype] + temp;
+	struct f2fs_bio_info *io = &sbi->write_io[btype];
 
 	down_write(&io->io_rwsem);
 
@@ -321,35 +322,17 @@ static void __f2fs_submit_merged_write(struct f2fs_sb_info *sbi,
 	up_write(&io->io_rwsem);
 }
 
-static void __submit_merged_write_cond(struct f2fs_sb_info *sbi,
-				struct inode *inode, nid_t ino, pgoff_t idx,
-				enum page_type type, bool force)
-{
-	enum temp_type temp;
-
-	if (!force && !has_merged_page(sbi, inode, ino, idx, type))
-		return;
-
-	for (temp = HOT; temp < NR_TEMP_TYPE; temp++) {
-
-		__f2fs_submit_merged_write(sbi, type, temp);
-
-		/* TODO: use HOT temp only for meta pages now. */
-		if (type >= META)
-			break;
-	}
-}
-
 void f2fs_submit_merged_write(struct f2fs_sb_info *sbi, enum page_type type)
 {
-	__submit_merged_write_cond(sbi, NULL, 0, 0, type, true);
+	__f2fs_submit_merged_write(sbi, NULL, 0, 0, type);
 }
 
 void f2fs_submit_merged_write_cond(struct f2fs_sb_info *sbi,
 				struct inode *inode, nid_t ino, pgoff_t idx,
 				enum page_type type)
 {
-	__submit_merged_write_cond(sbi, inode, ino, idx, type, false);
+	if (has_merged_page(sbi, inode, ino, idx, type))
+		__f2fs_submit_merged_write(sbi, inode, ino, idx, type);
 }
 
 void f2fs_flush_merged_writes(struct f2fs_sb_info *sbi)
@@ -392,25 +375,11 @@ int f2fs_submit_page_write(struct f2fs_io_info *fio)
 {
 	struct f2fs_sb_info *sbi = fio->sbi;
 	enum page_type btype = PAGE_TYPE_OF_BIO(fio->type);
-	struct f2fs_bio_info *io = sbi->write_io[btype] + fio->temp;
+	struct f2fs_bio_info *io = &sbi->write_io[btype];
 	struct page *bio_page;
 	int err = 0;
 
 	f2fs_bug_on(sbi, is_read_io(fio->op));
-
-	down_write(&io->io_rwsem);
-next:
-	if (fio->in_list) {
-		spin_lock(&io->io_lock);
-		if (list_empty(&io->io_list)) {
-			spin_unlock(&io->io_lock);
-			goto out_fail;
-		}
-		fio = list_first_entry(&io->io_list,
-						struct f2fs_io_info, list);
-		list_del(&fio->list);
-		spin_unlock(&io->io_lock);
-	}
 
 	if (fio->old_blkaddr != NEW_ADDR)
 		verify_block_addr(sbi, fio->old_blkaddr);
@@ -422,6 +391,8 @@ next:
 	fio->submitted = 1;
 
 	inc_page_count(sbi, WB_DATA_TYPE(bio_page));
+
+	down_write(&io->io_rwsem);
 
 	if (io->bio && (io->last_block_in_bio != fio->new_blkaddr - 1 ||
 	    (io->fio.op != fio->op || io->fio.op_flags != fio->op_flags) ||
@@ -454,6 +425,7 @@ alloc_new:
 		goto next;
 out_fail:
 	up_write(&io->io_rwsem);
+	trace_f2fs_submit_page_write(fio->page, fio);
 	return err;
 }
 
