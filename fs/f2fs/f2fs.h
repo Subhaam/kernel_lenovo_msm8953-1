@@ -917,12 +917,6 @@ enum temp_type {
 	NR_TEMP_TYPE,
 };
 
-enum need_lock_type {
-	LOCK_REQ = 0,
-	LOCK_DONE,
-	LOCK_RETRY,
-};
-
 struct f2fs_io_info {
 	struct f2fs_sb_info *sbi;	/* f2fs_sb_info pointer */
 	enum page_type type;	/* contains DATA/NODE/META/META_FLUSH */
@@ -1015,7 +1009,7 @@ struct f2fs_sb_info {
 	struct f2fs_sm_info *sm_info;		/* segment manager */
 
 	/* for bio operations */
-	struct f2fs_bio_info write_io[NR_PAGE_TYPE];	/* for write bios */
+	struct f2fs_bio_info *write_io[NR_PAGE_TYPE];	/* for write bios */
 	struct mutex wio_mutex[NODE + 1];	/* bio ordering for NODE/DATA */
 	int write_io_size_bits;			/* Write IO size bits */
 	mempool_t *write_io_dummy;		/* Dummy pages */

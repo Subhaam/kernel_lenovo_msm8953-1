@@ -1984,17 +1984,13 @@ try_onemore:
 
 		sbi->write_io[i] = kmalloc(n * sizeof(struct f2fs_bio_info),
 								GFP_KERNEL);
-		if (!sbi->write_io[i]) {
-			err = -ENOMEM;
+ 	if (!sbi->write_io[i])
 			goto free_options;
-		}
 
 		for (j = HOT; j < n; j++) {
 			init_rwsem(&sbi->write_io[i][j].io_rwsem);
 			sbi->write_io[i][j].sbi = sbi;
 			sbi->write_io[i][j].bio = NULL;
-			spin_lock_init(&sbi->write_io[i][j].io_lock);
-			INIT_LIST_HEAD(&sbi->write_io[i][j].io_list);
 		}
 	}
 
