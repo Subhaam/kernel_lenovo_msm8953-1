@@ -2225,29 +2225,17 @@ static int __get_segment_type_6(struct f2fs_io_info *fio)
 
 static int __get_segment_type(struct f2fs_io_info *fio)
 {
-	int type = 0;
-
 	switch (fio->sbi->active_logs) {
 	case 2:
-		type = __get_segment_type_2(fio);
-		break;
+		return __get_segment_type_2(fio);
 	case 4:
-		type = __get_segment_type_4(fio);
-		break;
-	case 6:
-		type = __get_segment_type_6(fio);
-		break;
-	default:
-		f2fs_bug_on(fio->sbi, true);
+		return __get_segment_type_4(fio);
 	}
 
-	if (IS_HOT(type))
-		fio->temp = HOT;
-	else if (IS_WARM(type))
-		fio->temp = WARM;
-	else
-		fio->temp = COLD;
-	return type;
+	/* NR_CURSEG_TYPE(6) logs by default */
+	f2fs_bug_on(fio->sbi, fio->sbi->active_logs != NR_CURSEG_TYPE);
+
+	return __get_segment_type_6(fio);
 }
 
 void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
