@@ -917,6 +917,12 @@ enum temp_type {
 	NR_TEMP_TYPE,
 };
 
+enum need_lock_type {
+	LOCK_REQ = 0,
+	LOCK_DONE,
+	LOCK_RETRY,
+};
+
 struct f2fs_io_info {
 	struct f2fs_sb_info *sbi;	/* f2fs_sb_info pointer */
 	enum page_type type;	/* contains DATA/NODE/META/META_FLUSH */
@@ -930,7 +936,6 @@ struct f2fs_io_info {
 	struct list_head list;		/* serialize IOs */
 	bool submitted;		/* indicate IO submission */
 	int need_lock;		/* indicate we need to lock cp_rwsem */
-	bool in_list;		/* indicate fio is in io_list */
 };
 
 #define is_read_io(rw) ((rw) == READ)

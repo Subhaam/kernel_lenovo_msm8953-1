@@ -1401,9 +1401,8 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		}
 	}
 
-	/* Deadlock due to between page->lock and f2fs_lock_op */
-	if (fio->need_lock == LOCK_REQ && !f2fs_trylock_op(fio->sbi))
-		return -EAGAIN;
+	if (fio->need_lock == LOCK_REQ)
+		f2fs_lock_op(fio->sbi);
 
 	err = get_dnode_of_data(&dn, page->index, LOOKUP_NODE);
 	if (err)
