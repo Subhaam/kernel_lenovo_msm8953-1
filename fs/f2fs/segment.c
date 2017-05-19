@@ -1146,7 +1146,13 @@ next:
 	mutex_unlock(&dcc->cmd_lock);
 
 	if (need_wait) {
-		__wait_one_discard_bio(sbi, dc);
+		wait_for_completion_io(&dc->wait);
+		mutex_lock(&dcc->cmd_lock);
+		f2fs_bug_on(sbi, dc->state != D_DONE);
+		dc->ref--;
+		if (!dc->ref)
+			__remove_discard_cmd(sbi, dc);
+		mutex_unlock(&dcc->cmd_lock);
 		goto next;
 	}
 }
