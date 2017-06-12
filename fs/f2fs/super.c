@@ -795,12 +795,6 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_printf(seq, ",fault_injection=%u",
 				sbi->fault_info.inject_rate);
 #endif
-#ifdef CONFIG_QUOTA
-	if (test_opt(sbi, USRQUOTA))
-		seq_puts(seq, ",usrquota");
-	if (test_opt(sbi, GRPQUOTA))
-		seq_puts(seq, ",grpquota");
-#endif
 
 	return 0;
 }
