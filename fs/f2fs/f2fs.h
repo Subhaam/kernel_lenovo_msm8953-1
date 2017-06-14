@@ -408,8 +408,6 @@ static inline bool __has_cursum_space(struct f2fs_journal *journal,
 						struct f2fs_flush_device)
 #define F2FS_IOC_GARBAGE_COLLECT_RANGE	_IOW(F2FS_IOCTL_MAGIC, 11,	\
 						struct f2fs_gc_range)
-#define F2FS_IOC_GET_FEATURES		_IOR(F2FS_IOCTL_MAGIC, 12, __u32)
-
 #define F2FS_IOC_SET_ENCRYPTION_POLICY	FS_IOC_SET_ENCRYPTION_POLICY
 #define F2FS_IOC_GET_ENCRYPTION_POLICY	FS_IOC_GET_ENCRYPTION_POLICY
 #define F2FS_IOC_GET_ENCRYPTION_PWSALT	FS_IOC_GET_ENCRYPTION_PWSALT
@@ -1477,7 +1475,8 @@ static inline int F2FS_HAS_BLOCKS(struct inode *inode)
 {
 	block_t xattr_block = F2FS_I(inode)->i_xattr_nid ? 1 : 0;
 
-	return (inode->i_blocks >> F2FS_LOG_SECTORS_PER_BLOCK) > xattr_block;
+	return (inode->i_blocks >> F2FS_LOG_SECTORS_PER_BLOCK) >
+			(F2FS_DEFAULT_ALLOCATED_BLOCKS + xattr_block);
 }
 
 static inline bool f2fs_has_xattr_block(unsigned int ofs)
@@ -1485,8 +1484,8 @@ static inline bool f2fs_has_xattr_block(unsigned int ofs)
 	return ofs == XATTR_NODE_OFFSET;
 }
 
-static inline void f2fs_i_blocks_write(struct inode *, block_t, bool, bool);
-static inline int inc_valid_block_count(struct f2fs_sb_info *sbi,
+static inline void f2fs_i_blocks_write(struct inode *, block_t, bool);
+static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 				 struct inode *inode, blkcnt_t *count)
 {
 	blkcnt_t diff = 0, release = 0;
@@ -2013,21 +2012,14 @@ static inline void f2fs_i_links_write(struct inode *inode, bool inc)
 }
 
 static inline void f2fs_i_blocks_write(struct inode *inode,
-					block_t diff, bool add, bool claim)
+					block_t diff, bool add)
 {
 	bool clean = !is_inode_flag_set(inode, FI_DIRTY_INODE);
 	bool recover = is_inode_flag_set(inode, FI_AUTO_RECOVER);
+	blkcnt_t sectors = diff << F2FS_LOG_SECTORS_PER_BLOCK;
 
-	/* add = 1, claim = 1 should be dquot_reserve_block in pair */
-	if (add) {
-		if (claim)
-			dquot_claim_block(inode, diff);
-		else
-			dquot_alloc_block_nofail(inode, diff);
-	} else {
-		dquot_free_block(inode, diff);
-	}
-
+        inode->i_blocks = add ? inode->i_blocks + sectors :
+				inode->i_blocks - sectors;
 	f2fs_mark_inode_dirty_sync(inode, true);
 	if (clean || recover)
 		set_inode_flag(inode, FI_AUTO_RECOVER);
