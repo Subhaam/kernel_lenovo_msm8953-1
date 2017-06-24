@@ -6254,8 +6254,12 @@ static irqreturn_t fastchg_handler(int irq, void *_chip)
 	struct smbchg_chip *chip = _chip;
 
 	pr_smb(PR_INTERRUPT, "p2f triggered\n");
-	smbchg_detect_parallel_charger(chip);
-	smbchg_parallel_usb_check_ok(chip);
+
+	if (is_usb_present(chip) || is_dc_present(chip)) {
+		smbchg_detect_parallel_charger(chip);
+		smbchg_parallel_usb_check_ok(chip);
+	}
+
 	if (chip->psy_registered)
 		power_supply_changed(&chip->batt_psy);
 	smbchg_charging_status_change(chip);
@@ -8421,6 +8425,7 @@ static int smbchg_probe(struct spmi_device *spmi)
 
 	rerun_hvdcp_det_if_necessary(chip);
 
+	update_usb_status(chip, is_usb_present(chip), false);
 	dump_regs(chip);
 	create_debugfs_entries(chip);
 	dev_info(chip->dev,

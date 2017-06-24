@@ -17,6 +17,8 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -41,6 +43,16 @@
 static void dwc3_gadget_wakeup_interrupt(struct dwc3 *dwc, bool remote_wakeup);
 static int dwc3_gadget_wakeup_int(struct dwc3 *dwc);
 
+/*
+ * Some USB functions' endpoints are not enabled at set config stage.
+ * So fifo_resize cannot happen for these endpoints.
+ * So, user can specify Isochronous IN endpoint using high_bw_ep_in_num
+ * to enable fifo_resize to support high bandwidth transfers.
+ */
+static int high_bw_ep_in_num;
+module_param(high_bw_ep_in_num, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(high_bw_ep_in_num,
+		"Isoc ep number to support for HS high bandwidth transfer");
 /**
  * dwc3_gadget_set_test_mode - Enables USB2 Test Modes
  * @dwc: pointer to our context structure
@@ -215,6 +227,9 @@ int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 		if (dep->endpoint.ep_type == EP_TYPE_GSI)
 			mult = 3;
 
+		if (num == high_bw_ep_in_num)
+			mult = 3;
+
 		if (!(dep->flags & DWC3_EP_ENABLED)) {
 			dev_dbg(dwc->dev, "ep%dIn not enabled", num);
 			goto resize_fifo;
@@ -298,7 +313,7 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 		usb_gadget_unmap_request(&dwc->gadget, &req->request,
 				req->direction);
 
-	dev_dbg(dwc->dev, "request %p from %s completed %d/%d ===> %d\n",
+	dev_dbg(dwc->dev, "request %pK from %s completed %d/%d ===> %d\n",
 			req, dep->name, req->request.actual,
 			req->request.length, status);
 	trace_dwc3_gadget_giveback(req);
@@ -704,7 +719,7 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 	int				ret;
 
 	if (!ep || !desc || desc->bDescriptorType != USB_DT_ENDPOINT) {
-		pr_debug("dwc3: invalid parameters. ep=%p, desc=%p, DT=%d\n",
+		pr_debug("dwc3: invalid parameters. ep=%pK, desc=%pK, DT=%d\n",
 			ep, desc, desc ? desc->bDescriptorType : 0);
 		return -EINVAL;
 	}
@@ -832,8 +847,9 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	struct dwc3_trb		*trb;
 	bool			zlp_appended = false;
 	unsigned		rlen;
+	int			isoc_maxp;
 
-	dev_vdbg(dwc->dev, "%s: req %p dma %08llx length %d%s%s\n",
+	dev_vdbg(dwc->dev, "%s: req %pK dma %08llx length %d%s%s\n",
 			dep->name, req, (unsigned long long) dma,
 			length, last ? " last" : "",
 			chain ? " chain" : "");
@@ -865,6 +881,8 @@ update_trb:
 		break;
 
 	case USB_ENDPOINT_XFER_ISOC:
+		isoc_maxp = usb_endpoint_maxp(dep->endpoint.desc);
+		trb->size |= DWC3_TRB_SIZE_PCM1(isoc_maxp >> 11);
 		if (!node)
 			trb->ctrl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
 		else
@@ -1299,7 +1317,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 	if (req->request.status == -EINPROGRESS) {
 		ret = -EBUSY;
-		dev_err(dwc->dev, "%s: %p request already in queue",
+		dev_err(dwc->dev, "%s: %pK request already in queue",
 					dep->name, req);
 		return ret;
 	}
@@ -1444,7 +1462,7 @@ static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	if (!dep->endpoint.desc) {
-		dev_dbg(dwc->dev, "trying to queue request %p to disabled %s\n",
+		dev_dbg(dwc->dev, "trying to queue request %pK to disabled %s\n",
 				request, ep->name);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -ESHUTDOWN;
@@ -1455,7 +1473,7 @@ static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 	 * API should not be allowed.
 	 */
 	if (dep->endpoint.endless) {
-		dev_dbg(dwc->dev, "trying to queue endless request %p to %s\n",
+		dev_dbg(dwc->dev, "trying to queue endless request %pK to %s\n",
 				request, ep->name);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -EPERM;
@@ -1468,7 +1486,7 @@ static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 		return dwc->gadget.remote_wakeup ? -EAGAIN : -ENOTSUPP;
 	}
 
-	dev_vdbg(dwc->dev, "queing request %p to %s length %d\n",
+	dev_vdbg(dwc->dev, "queing request %pK to %s length %d\n",
 			request, ep->name, request->length);
 	trace_dwc3_ep_queue(req);
 
@@ -1518,7 +1536,7 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 			dwc3_stop_active_transfer(dwc, dep->number, true);
 			goto out1;
 		}
-		dev_err(dwc->dev, "request %p was not queued to %s\n",
+		dev_err(dwc->dev, "request %pK was not queued to %s\n",
 				request, ep->name);
 		ret = -EINVAL;
 		goto out0;
@@ -2430,7 +2448,7 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		 * would help. Lets hope that if this occurs, someone
 		 * fixes the root cause instead of looking away :)
 		 */
-		dev_err(dwc->dev, "%s's TRB (%p) still owned by HW\n",
+		dev_err(dwc->dev, "%s's TRB (%pK) still owned by HW\n",
 				dep->name, trb);
 	count = trb->size & DWC3_TRB_SIZE_MASK;
 

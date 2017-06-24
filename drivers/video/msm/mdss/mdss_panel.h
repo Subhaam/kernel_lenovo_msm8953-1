@@ -94,6 +94,9 @@ struct panel_param {
 
 #define DSC_PPS_LEN		128
 
+/* HDR propeties count */
+#define DISPLAY_PRIMARIES_COUNT	8	/* WRGB x and y values*/
+
 static inline const char *mdss_panel2str(u32 panel)
 {
 	static const char const *names[] = {
@@ -623,6 +626,19 @@ struct mdss_panel_roi_alignment {
 	u32 min_height;
 };
 
+struct mdss_panel_hdr_properties {
+	bool hdr_enabled;
+
+	/* WRGB X and y values arrayed in format */
+	/* [WX, WY, RX, RY, GX, GY, BX, BY] */
+	u32 display_primaries[DISPLAY_PRIMARIES_COUNT];
+
+	/* peak brightness supported by panel */
+	u32 peak_brightness;
+	/* Blackness level supported by panel */
+	u32 blackness_level;
+};
+
 struct mdss_panel_info {
 	u32 xres;
 	u32 yres;
@@ -766,6 +782,8 @@ struct mdss_panel_info {
 	u32 forced_tx_mode_ftr_enabled;
 	u32 forced_tx_mode_state;
 	bool hbm_restore;
+	/* HDR properties of display panel*/
+	struct mdss_panel_hdr_properties hdr_properties;
 };
 
 struct mdss_panel_timing {
