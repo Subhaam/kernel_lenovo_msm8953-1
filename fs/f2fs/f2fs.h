@@ -1488,13 +1488,8 @@ static inline void f2fs_i_blocks_write(struct inode *, block_t, bool);
 static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 				 struct inode *inode, blkcnt_t *count)
 {
-	blkcnt_t diff = 0, release = 0;
+	blkcnt_t diff;
 	block_t avail_user_block_count;
-	int ret;
-
-	ret = dquot_reserve_block(inode, *count);
-	if (ret)
-		return ret;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_BLOCK)) {
@@ -1515,7 +1510,6 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	if (unlikely(sbi->total_valid_block_count > avail_user_block_count)) {
 		diff = sbi->total_valid_block_count - avail_user_block_count;
 		*count -= diff;
-		release = diff;
 		sbi->total_valid_block_count = avail_user_block_count;
 		if (!*count) {
 			spin_unlock(&sbi->stat_lock);
