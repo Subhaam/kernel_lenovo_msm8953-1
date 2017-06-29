@@ -575,8 +575,6 @@ static void f2fs_put_super(struct super_block *sb)
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	int i;
 
-	stop_gc_thread(sbi);
-
 	/* prevent remaining shrinker jobs */
 	mutex_lock(&sbi->umount_mutex);
 
