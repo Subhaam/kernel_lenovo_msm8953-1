@@ -1483,12 +1483,17 @@ static inline bool f2fs_has_xattr_block(unsigned int ofs)
 	return ofs == XATTR_NODE_OFFSET;
 }
 
-static inline void f2fs_i_blocks_write(struct inode *, block_t, bool);
-static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
+static inline void f2fs_i_blocks_write(struct inode *, block_t, bool, bool);
+static inline int inc_valid_block_count(struct f2fs_sb_info *sbi,
 				 struct inode *inode, blkcnt_t *count)
 {
-	blkcnt_t diff;
+	blkcnt_t diff = 0, release = 0;
 	block_t avail_user_block_count;
+	int ret;
+
+	ret = dquot_reserve_block(inode, *count);
+	if (ret)
+		return ret;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_BLOCK)) {
@@ -1509,6 +1514,7 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	if (unlikely(sbi->total_valid_block_count > avail_user_block_count)) {
 		diff = sbi->total_valid_block_count - avail_user_block_count;
 		*count -= diff;
+		release = diff;
 		sbi->total_valid_block_count = avail_user_block_count;
 		if (!*count) {
 			spin_unlock(&sbi->stat_lock);
@@ -1668,7 +1674,7 @@ static inline block_t __start_sum_addr(struct f2fs_sb_info *sbi)
 	return le32_to_cpu(F2FS_CKPT(sbi)->cp_pack_start_sum);
 }
 
-static inline bool inc_valid_node_count(struct f2fs_sb_info *sbi,
+static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 					struct inode *inode, bool is_inode)
 {
 	block_t	valid_block_count;
@@ -1694,13 +1700,6 @@ static inline bool inc_valid_node_count(struct f2fs_sb_info *sbi,
 	if (unlikely(valid_node_count > sbi->total_node_count)) {
 		spin_unlock(&sbi->stat_lock);
 		goto enospc;
-	}
-
-	if (inode) {
-		if (is_inode)
-			f2fs_mark_inode_dirty_sync(inode, true);
-		else
-			f2fs_i_blocks_write(inode, 1, true);
 	}
 
 	sbi->total_valid_node_count++;
@@ -1732,8 +1731,6 @@ static inline void dec_valid_node_count(struct f2fs_sb_info *sbi,
 	f2fs_bug_on(sbi, !sbi->total_valid_node_count);
 	f2fs_bug_on(sbi, !is_inode && !inode->i_blocks);
 
-	if (!is_inode)
-		f2fs_i_blocks_write(inode, 1, false);
 	sbi->total_valid_node_count--;
 	sbi->total_valid_block_count--;
 
@@ -2014,14 +2011,21 @@ static inline void f2fs_i_links_write(struct inode *inode, bool inc)
 }
 
 static inline void f2fs_i_blocks_write(struct inode *inode,
-					block_t diff, bool add)
+					block_t diff, bool add, bool claim)
 {
 	bool clean = !is_inode_flag_set(inode, FI_DIRTY_INODE);
 	bool recover = is_inode_flag_set(inode, FI_AUTO_RECOVER);
-	blkcnt_t sectors = diff << F2FS_LOG_SECTORS_PER_BLOCK;
 
-        inode->i_blocks = add ? inode->i_blocks + sectors :
-				inode->i_blocks - sectors;
+	/* add = 1, claim = 1 should be dquot_reserve_block in pair */
+	if (add) {
+		if (claim)
+			dquot_claim_block(inode, diff);
+		else
+			dquot_alloc_block_nofail(inode, diff);
+	} else {
+		dquot_free_block(inode, diff);
+	}
+
 	f2fs_mark_inode_dirty_sync(inode, true);
 	if (clean || recover)
 		set_inode_flag(inode, FI_AUTO_RECOVER);

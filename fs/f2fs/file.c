@@ -1546,6 +1546,7 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 
 	/* Is it quota file? Do not allow user to mess with it */
 	if (IS_NOQUOTA(inode)) {
+		inode_unlock(inode);
 		ret = -EPERM;
 		goto unlock_out;
 	}
@@ -1568,6 +1569,7 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 	inode->i_ctime = current_time(inode);
 	f2fs_set_inode_flags(inode);
 	f2fs_mark_inode_dirty_sync(inode, false);
+unlock_out:
 	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return ret;

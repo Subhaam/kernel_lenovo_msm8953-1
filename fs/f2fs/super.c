@@ -570,10 +570,13 @@ static void destroy_device_list(struct f2fs_sb_info *sbi)
 	kfree(sbi->devs);
 }
 
+static void f2fs_quota_off_umount(struct super_block *sb);
 static void f2fs_put_super(struct super_block *sb)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	int i;
+
+	f2fs_quota_off_umount(sb);
 
 	/* prevent remaining shrinker jobs */
 	mutex_lock(&sbi->umount_mutex);
@@ -791,6 +794,12 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	if (test_opt(sbi, FAULT_INJECTION))
 		seq_printf(seq, ",fault_injection=%u",
 				sbi->fault_info.inject_rate);
+#endif
+#ifdef CONFIG_QUOTA
+	if (test_opt(sbi, USRQUOTA))
+		seq_puts(seq, ",usrquota");
+	if (test_opt(sbi, GRPQUOTA))
+		seq_puts(seq, ",grpquota");
 #endif
 
 	return 0;
