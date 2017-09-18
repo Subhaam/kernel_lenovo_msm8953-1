@@ -4,7 +4,7 @@
 ## AnyKernel setup
 # begin properties
 properties() {
-kernel.string=FireKernel by Magma Kernel For the Lenovo P2 by @subham
+kernel.string=Magma Kernel For the Lenovo P2 by @subham
 do.devicecheck=1
 do.modules=1
 do.cleanup=1
