@@ -30,6 +30,13 @@ export CROSS_COMPILE=~/android/kernel/toolchain/google-64-4.9/bin/aarch64-linux-
 export KBUILD_BUILD_USER="subham"
 export KBUILD_BUILD_HOST="magmabox"
 
+# Magma Kernel Details
+KERNEL_NAME="Magma"
+INCREMENTAL_VERSION="ChillyPotato"
+export LOCALVERSION=-${INCREMENTAL_VERSION}
+DEVICE="kuntao"
+FINAL_VER="${KERNEL_NAME}-${DEVICE}-${INCREMENTAL_VERSION}"
+
 ## Functions ##
 MAKE="make O=${OUT_DIR}"
 
@@ -66,7 +73,7 @@ mv $ANYKERNEL_DIR/UPDATE-AnyKernel2.zip $UPLOAD_DIR/$FINAL_ZIP
 # Options
 function options() {
 echo -e "$cyan***********************************************"
-  echo "          Compiling FireKernel kernel          "
+  echo "          Compiling Magma kernel          "
   echo -e "***********************************************$nocol"
   echo -e " "
   echo -e " Select one of the following types of build : "
