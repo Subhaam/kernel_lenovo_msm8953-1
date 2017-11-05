@@ -10,7 +10,7 @@ nocol='\033[0m'
 
 # Kernel details
 KERNEL_NAME="Magmakernel"
-VERSION="v3"
+VERSION="v4"
 DATE=$(date +"%d-%m-%Y-%I-%M")
 DEVICE="kuntao"
 FINAL_ZIP=$KERNEL_NAME-$VERSION-$DEVICE-$DATE.zip
@@ -32,7 +32,7 @@ export KBUILD_BUILD_HOST="magmabox"
 
 # Magma Kernel Details
 KERNEL_NAME="Magma"
-INCREMENTAL_VERSION="speedyorange"
+INCREMENTAL_VERSION="mangochips"
 export LOCALVERSION=-${INCREMENTAL_VERSION}
 DEVICE="kuntao"
 FINAL_VER="${KERNEL_NAME}-${DEVICE}-${INCREMENTAL_VERSION}"
