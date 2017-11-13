@@ -4,7 +4,7 @@
 ## AnyKernel setup
 # begin properties
 properties() {
-kernel.string=FireKernel by FireLord @ xda-developers
+kernel.string=Magma by Subham
 do.devicecheck=1
 do.modules=1
 do.cleanup=1

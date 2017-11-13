@@ -45,7 +45,14 @@ chmod -R 755 /tmp/anykernel/tools /tmp/anykernel/bin;
 bb=/tmp/anykernel/tools/busybox;
 
 ui_print "$(file_getprop /tmp/anykernel/anykernel.sh kernel.string)";
-ui_print " ";
+
+ui_print "___  ___  ___  _____ ___  ___  ___ ";
+ui_print "|  \/  | / _ \|  __ \|  \/  | / _ \";
+ui_print "| .  . |/ /_\ \ |  \/| .  . |/ /_\ \";
+ui_print "| |\/| ||  _  | | __ | |\/| ||  _  |";
+ui_print "| |  | || | | | |_\ \| |  | || | | |";
+ui_print "\_|  |_/\_| |_/\____/\_|  |_/\_| |_/";
+
 ui_print "AnyKernel2 by osm0sis @ xda-developers";
 ui_print " ";
 umount /system 2>/dev/null;
